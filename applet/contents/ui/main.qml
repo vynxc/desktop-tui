@@ -20,7 +20,9 @@ PlasmoidItem {
     )
     readonly property string instanceKey: String(Plasmoid.containment.id) + "-" + String(Plasmoid.id)
     readonly property string sharedFramePath: runtimeRoot + "/desktop-tui-" + instanceKey + ".bin"
+    readonly property bool commandCanvas: Plasmoid.configuration.canvasSource === "command"
     readonly property string rendererSignature: [
+        Plasmoid.configuration.canvasSource || "renderer",
         Plasmoid.configuration.templateId || "model-system",
         Plasmoid.configuration.customTemplatePath || "",
         Plasmoid.configuration.modelPath || "",
@@ -29,6 +31,16 @@ PlasmoidItem {
         Plasmoid.configuration.animateModel === undefined
             ? true
             : Plasmoid.configuration.animateModel,
+        Plasmoid.configuration.commandProgram || "",
+        Plasmoid.configuration.commandArguments || "",
+        Plasmoid.configuration.commandWorkingDirectory || "",
+        Plasmoid.configuration.commandEnvironment || "",
+        Plasmoid.configuration.commandExitBehavior || "keep-output",
+        Plasmoid.configuration.commandIntervalSeconds || 30,
+        Plasmoid.configuration.commandTimeoutSeconds || 0,
+        Plasmoid.configuration.commandClearBetweenRuns === undefined
+            ? true
+            : Plasmoid.configuration.commandClearBetweenRuns,
         Plasmoid.configuration.fontFamily || "monospace",
         Plasmoid.configuration.fontPointSize || 11,
         Plasmoid.configuration.lineSpacing || 1
@@ -52,6 +64,38 @@ PlasmoidItem {
 
     function normalizedLines(lines) {
         return Math.max(8, lines || 48);
+    }
+
+    function argumentLines(value) {
+        const lines = (value || "").replace(/\r/g, "").split("\n");
+        if (lines.length > 0 && lines[lines.length - 1] === "") {
+            lines.pop();
+        }
+        return lines;
+    }
+
+    function commandArguments() {
+        const configuration = Plasmoid.configuration;
+        return [
+            "MALLOC_ARENA_MAX=1",
+            "MALLOC_TRIM_THRESHOLD_=0",
+            "DESKTOP_TUI_COMMAND_PROGRAM=" + (configuration.commandProgram || ""),
+            "DESKTOP_TUI_COMMAND_ARGUMENTS_JSON="
+                + JSON.stringify(argumentLines(configuration.commandArguments)),
+            "DESKTOP_TUI_COMMAND_WORKING_DIRECTORY="
+                + (configuration.commandWorkingDirectory || ""),
+            "DESKTOP_TUI_COMMAND_ENVIRONMENT=" + (configuration.commandEnvironment || ""),
+            "DESKTOP_TUI_COMMAND_EXIT_BEHAVIOR="
+                + (configuration.commandExitBehavior || "keep-output"),
+            "DESKTOP_TUI_COMMAND_INTERVAL_SECONDS="
+                + (configuration.commandIntervalSeconds || 30),
+            "DESKTOP_TUI_COMMAND_TIMEOUT_SECONDS="
+                + (configuration.commandTimeoutSeconds || 0),
+            "DESKTOP_TUI_COMMAND_CLEAR_BETWEEN_RUNS="
+                + (configuration.commandClearBetweenRuns === false ? "0" : "1"),
+            renderer,
+            "command"
+        ];
     }
 
     function rendererArguments(columns, lines) {
@@ -82,10 +126,16 @@ PlasmoidItem {
         return args;
     }
 
+    function sessionArguments(columns, lines) {
+        return commandCanvas
+            ? commandArguments()
+            : rendererArguments(columns, lines);
+    }
+
     function startRenderer(terminal, session) {
         runningColumns = normalizedColumns(terminal.columns);
         runningLines = normalizedLines(terminal.lines);
-        session.shellProgramArgs = rendererArguments(runningColumns, runningLines);
+        session.shellProgramArgs = sessionArguments(runningColumns, runningLines);
         session.startShellProgram();
     }
 
@@ -160,7 +210,7 @@ PlasmoidItem {
             blinkingCursor: false
             useFBORendering: false
             sharedFramePath: root.sharedFramePath
-            sharedFrameMode: true
+            sharedFrameMode: !root.commandCanvas
             mouseInputEnabled: Plasmoid.configuration.allowTextSelection || false
 
             session: Terminal.QMLTermSession {

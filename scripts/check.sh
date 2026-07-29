@@ -21,6 +21,7 @@ else
 fi
 
 python3 -m py_compile tools/*.py
+python3 -m unittest discover -s tests -p 'test_*.py'
 
 if ! command -v jq >/dev/null 2>&1; then
     echo "jq is required to validate JSON files." >&2

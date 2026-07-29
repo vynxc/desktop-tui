@@ -14,9 +14,11 @@ comes from the selected template and the active KDE color scheme.
 
 Plasma KConfig owns settings per applet instance:
 
+- canvas source: built-in renderer or an external command;
 - template ID or custom template path;
 - optional model override;
 - frame rate, animation, and FPS-counter visibility;
+- command, exact arguments, working directory, environment, and lifecycle;
 - optional terminal text selection; and
 - terminal font family, size, and line spacing.
 
@@ -68,6 +70,20 @@ QML does not reconstruct or recolor cells. Ratatui produces glyphs and ANSI
 truecolor at the terminal's exact row and column count. The patched bundled
 QMLTermWidget preserves alpha in the color scheme and image render target so
 Plasma composites the canvas over the desktop.
+
+## Command canvases
+
+Command canvases use the same terminal presentation but bypass the shared-frame
+renderer. The installed Rust binary acts as a small process supervisor and
+launches one explicit program directly in the PTY. Arguments retain their exact
+boundaries; no shell parses strings or expands variables, globs, pipes, or
+redirections.
+
+The supervisor owns one-shot, interval, timeout, and restart behavior. Rapid
+failures use bounded exponential backoff. Commands are local KConfig settings,
+not template fields, so importing a visual JSON manifest cannot execute code.
+The full contract and threat model are in
+[`docs/command-canvases.md`](docs/command-canvases.md).
 
 ## Color
 

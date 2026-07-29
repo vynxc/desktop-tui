@@ -14,9 +14,10 @@
 </div>
 
 Desktop TUI is a transparent Plasma 6 widget backed by a native Rust renderer.
-It can display animated GLB models, live system information, or both—without a
-window frame, input prompt, or painted background. Add one instance or fill
-several monitors with independent canvases.
+It can display animated GLB models, live system information, or the exact
+output of another terminal program—without a window frame, input prompt, or
+painted background. Add one instance or fill several monitors with independent
+canvases.
 
 The QML layer does not approximate terminal output. Ratatui produces the glyphs
 and truecolor cells, and the bundled terminal module presents those exact cells
@@ -56,7 +57,7 @@ Five templates are included:
 - **System information** — a centered, model-free overview.
 - **Compact system** — fewer sections for small widgets and side monitors.
 
-Every applet instance keeps its own template, custom model path, font, frame
+Every applet instance keeps its own source, template or command, font, frame
 rate, animation state, and FPS-counter setting.
 
 ## The renderer is actually live
@@ -94,6 +95,33 @@ For example:
 - side monitor: Model only with a custom GLB at 24 FPS.
 
 Changing one instance does not restart or reconfigure the others.
+
+## Run any display-only terminal program
+
+Choose **Command output** as the canvas source to place an existing CLI or TUI
+directly on the desktop. Desktop TUI launches the program in its real embedded
+PTY, so ANSI color, cursor movement, truecolor, and full-screen Ratatui layouts
+render the same way they do in a terminal.
+
+For a static `fastfetch` canvas:
+
+| Setting | Value |
+| --- | --- |
+| Program | `fastfetch` |
+| Arguments | `--logo` on one line, `none` on the next |
+| After exit | Run once and keep output |
+
+For a continuously updating dashboard, select **Keep running**. If it exits,
+Desktop TUI restarts it with bounded backoff instead of flashing the desktop.
+For a command that prints a fresh snapshot, use **Run on an interval**.
+
+Programs are launched directly—never through `sh -c`. Enter one exact argument
+per line and one optional `NAME=value` environment entry per line. Commands are
+an explicit per-widget setting and cannot be embedded in downloadable template
+files.
+
+See [Command canvases](docs/command-canvases.md) for lifecycle behavior,
+security boundaries, configuration keys, and the test matrix.
 
 ## Mouse behavior
 
@@ -167,9 +195,9 @@ make check
 make install-no-restart
 ```
 
-`make check` runs Rust formatting, Clippy with warnings denied, all tests,
-shell lint when available, JSON validation, QML lint, and a private-content
-guard.
+`make check` runs Rust formatting, Clippy with warnings denied, unit and
+integration tests, the applet configuration contract, shell lint when
+available, JSON validation, QML lint, and a private-content guard.
 
 Run the same GitHub Actions job locally with
 [act](https://github.com/nektos/act):
@@ -202,9 +230,10 @@ templates, and sample asset. Custom models and templates are left alone.
 
 ## Status and scope
 
-The first public release targets Plasma 6 on Linux. The applet is intentionally
+The first public releases target Plasma 6 on Linux. The applet is intentionally
 display-only: no shell prompt, keyboard input, or model controls are exposed on
-the desktop. File pickers and a graphical template editor are future work.
+the desktop. Command canvases run only programs selected in the local widget
+settings. File pickers and a graphical template editor are future work.
 
 ## License
 

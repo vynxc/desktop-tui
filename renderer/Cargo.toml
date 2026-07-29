@@ -1,6 +1,6 @@
 [package]
 name = "desktop-tui"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Transparent Ratatui desktop widgets for KDE Plasma 6"
 repository = "https://github.com/vynxc/desktop-tui"

@@ -1,5 +1,6 @@
 mod ansi;
 mod backend;
+mod command_canvas;
 mod template;
 
 use std::{
@@ -148,6 +149,10 @@ fn parse_bool(value: &str) -> bool {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    if command_canvas::requested() {
+        return command_canvas::run();
+    }
+
     env::remove_var("NO_COLOR");
     env::set_var("TERM", "xterm-256color");
     env::set_var("COLORTERM", "truecolor");
