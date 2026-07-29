@@ -24,7 +24,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install system checks
         run: |
@@ -44,7 +44,7 @@ jobs:
           components: clippy, rustfmt
 
       - name: Cache Cargo data
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
