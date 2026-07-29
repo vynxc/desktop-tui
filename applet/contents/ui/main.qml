@@ -124,8 +124,8 @@ PlasmoidItem {
     }
 
     fullRepresentation: Item {
-        Layout.preferredWidth: 1100
-        Layout.preferredHeight: 620
+        Layout.preferredWidth: 1600
+        Layout.preferredHeight: 900
         Layout.minimumWidth: 320
         Layout.minimumHeight: 180
 
