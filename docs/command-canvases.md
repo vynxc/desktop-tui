@@ -172,10 +172,29 @@ TUIs should redraw in place and target modest frame rates.
 - run one static ANSI command and one streaming TUI in a disposable instance;
 - verify normal pointer, right-click, and middle-click pass-through.
 
-## First provider
+## MPRIS provider
 
-The first external provider will be a separate public MPRIS TUI. It will run as
-a long-lived command canvas, subscribe to player changes over the session
-D-Bus, render with Ratatui, and require no keyboard or mouse input.
+[MPRIS TUI](https://github.com/vynxc/mpris-tui) is the first external command
+provider. It runs as a long-lived command canvas, follows the active media
+player over the session D-Bus, renders with Ratatui, and requires no keyboard
+or mouse input.
+
+Install it with:
+
+```console
+cargo install --locked --git https://github.com/vynxc/mpris-tui
+```
+
+Then select **Command output** and use:
+
+| Setting | Value |
+| --- | --- |
+| Program | `mpris-tui` |
+| Arguments | `--layout` on one line, `wide` on the next |
+| After exit | Keep running |
+
+Choose `hero`, `wide`, `compact`, or `minimal` for each widget instance. Add
+`--fps` and a value from `1` to `30` on separate argument lines to cap its
+redraw rate.
 
 Its repository, releases, assets, and CI remain independent from Desktop TUI.

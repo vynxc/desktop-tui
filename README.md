@@ -115,6 +115,18 @@ For a continuously updating dashboard, select **Keep running**. If it exits,
 Desktop TUI restarts it with bounded backoff instead of flashing the desktop.
 For a command that prints a fresh snapshot, use **Run on an interval**.
 
+For a transparent now-playing canvas, install
+[MPRIS TUI](https://github.com/vynxc/mpris-tui), then configure:
+
+| Setting | Value |
+| --- | --- |
+| Program | `mpris-tui` |
+| Arguments | `--layout` on one line, `wide` on the next |
+| After exit | Keep running |
+
+MPRIS TUI follows the active Linux media player over D-Bus, needs no input, and
+offers `hero`, `wide`, `compact`, and `minimal` responsive layouts.
+
 Programs are launched directly—never through `sh -c`. Enter one exact argument
 per line and one optional `NAME=value` environment entry per line. Commands are
 an explicit per-widget setting and cannot be embedded in downloadable template

@@ -4,6 +4,8 @@ All notable changes to Desktop TUI will be documented here.
 
 ## [Unreleased]
 
+- Documented MPRIS TUI as the first external command-canvas provider.
+
 ## [0.2.0] - 2026-07-29
 
 - Added command canvases for rendering existing CLI and TUI programs in the
