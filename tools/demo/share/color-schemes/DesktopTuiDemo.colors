@@ -1,0 +1,17 @@
+[General]
+Name=Desktop TUI Demo
+
+[Colors:View]
+ForegroundNormal=232,235,248
+ForegroundInactive=155,163,190
+DecorationFocus=146,168,255
+DecorationHover=89,100,130
+
+[Colors:Window]
+ForegroundNormal=184,190,213
+
+[Colors:Selection]
+BackgroundNormal=146,168,255
+
+[Colors:Complementary]
+ForegroundNormal=184,197,255

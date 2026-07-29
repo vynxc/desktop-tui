@@ -1,0 +1,8 @@
+/target/
+/.codebase-memory/
+/.build/
+/.act/
+__pycache__/
+*.log
+*.tmp
+.DS_Store

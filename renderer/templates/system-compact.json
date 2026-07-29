@@ -1,0 +1,16 @@
+{
+  "name": "Compact system information",
+  "description": "A compact model-free overview for smaller widgets and secondary monitors.",
+  "outer_margin": 1,
+  "model": {
+    "enabled": false
+  },
+  "system": {
+    "enabled": true,
+    "width_percent": 80,
+    "horizontal_position": "center",
+    "horizontal_alignment": "left",
+    "vertical_alignment": "center",
+    "sections": ["SYSTEM", "HARDWARE", "NETWORK"]
+  }
+}

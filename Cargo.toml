@@ -1,0 +1,13 @@
+[workspace]
+members = [
+    "renderer",
+    "vendor/ratatui-3dmesh",
+]
+default-members = ["renderer"]
+resolver = "2"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+panic = "abort"
+strip = "symbols"

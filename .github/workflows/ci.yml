@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Rust, QML, shell, and metadata
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+
+    env:
+      CARGO_TERM_COLOR: always
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install system checks
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes \
+            jq \
+            make \
+            qt6-base-dev \
+            qt6-declarative-dev \
+            qt6-declarative-dev-tools \
+            ripgrep \
+            shellcheck
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache Cargo data
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Run release checks
+        run: ./scripts/check.sh
+
+      - name: Build release renderer
+        run: cargo build --release --locked --package desktop-tui
+
+      - name: Build terminal module
+        run: |
+          mkdir -p .build/ci-qmltermwidget
+          cd .build/ci-qmltermwidget
+          qmake6 "$GITHUB_WORKSPACE/vendor/qmltermwidget/qmltermwidget.pro"
+          make --jobs 2

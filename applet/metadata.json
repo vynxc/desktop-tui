@@ -1,0 +1,15 @@
+{
+  "KPackageStructure": "Plasma/Applet",
+  "KPlugin": {
+    "Authors": [{"Email": "", "Name": "vynxc"}],
+    "Category": "Utilities",
+    "Description": "Transparent, template-driven Ratatui canvases for your desktop",
+    "Icon": "utilities-terminal",
+    "Id": "io.github.vynxc.desktoptui",
+    "License": "MIT",
+    "Name": "Desktop TUI",
+    "Website": "https://github.com/vynxc/desktop-tui",
+    "Version": "0.1.0"
+  },
+  "X-Plasma-API-Minimum-Version": "6.0"
+}

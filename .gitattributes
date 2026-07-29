@@ -1,0 +1,6 @@
+vendor/** linguist-vendored
+vendor/qmltermwidget/** -whitespace
+*.glb binary
+*.png binary
+*.webp binary
+*.svgz binary

@@ -1,0 +1,26 @@
+{
+  "name": "Model only",
+  "description": "A clean animated-model canvas without text overlays.",
+  "outer_margin": 2,
+  "model": {
+    "enabled": true,
+    "asset": "fox.glb",
+    "scale": 1.35,
+    "pan": [0.0, -0.12, 0.0],
+    "rotation_degrees": [0.0, 25.0, 0.0],
+    "flip_horizontal": true,
+    "texture_filter": "bilinear",
+    "texture_lighting": true,
+    "color_brightness": 1.0,
+    "backface_culling": true,
+    "light_direction": [0.55, 0.35, 1.0],
+    "diffuse_light": 0.5,
+    "ambient_light": 0.5,
+    "animation_index": 1,
+    "animation_speed": 0.65,
+    "animation_loop_blend_seconds": 0.2
+  },
+  "system": {
+    "enabled": false
+  }
+}

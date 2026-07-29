@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Deterministic fastfetch-shaped output used only to build public README media.
+cat <<'EOF'
+OS: Plasma Linux x86_64
+Host: Open Desktop
+Kernel: Linux 6.12
+Uptime: 3 hours, 18 mins
+Packages: 1482 (native)
+Shell: fish
+Display: 2560x1440 @ 165 Hz
+DE: KDE Plasma 6.3
+WM: KWin (Wayland)
+CPU: AMD Ryzen 7 7700
+GPU: AMD Radeon RX 7800 XT
+Memory: 8.20 GiB / 31.20 GiB (26%)
+Disk (/): 124.4 GiB / 476.9 GiB (26%)
+Local IP (enp5s0): 192.0.2.42/24
+EOF

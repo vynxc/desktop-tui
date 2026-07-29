@@ -1,0 +1,16 @@
+{
+  "name": "System information",
+  "description": "A centered, model-free system overview with minimal memory use.",
+  "outer_margin": 2,
+  "model": {
+    "enabled": false
+  },
+  "system": {
+    "enabled": true,
+    "width_percent": 70,
+    "horizontal_position": "center",
+    "horizontal_alignment": "center",
+    "vertical_alignment": "center",
+    "sections": []
+  }
+}

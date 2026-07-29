@@ -1,0 +1,415 @@
+use std::borrow::Cow;
+
+use ratatui::{
+    buffer::Buffer,
+    layout::Rect,
+    style::{Color, Modifier, Style},
+    widgets::StatefulWidget,
+};
+
+use crate::{
+    config::Mesh3dConfig,
+    model::{Mesh, Vec3},
+    render::{render_mesh, render_prepared_mesh, PreparedMesh},
+};
+
+/// Persistent viewer state for [`Mesh3dWidget`].
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Mesh3dState {
+    /// Euler rotation in radians.
+    pub rotation: Vec3,
+    /// Pan in normalized model space.
+    pub pan: Vec3,
+    /// Zoom multiplier.
+    pub zoom: f32,
+    /// Whether auto-spin is currently enabled.
+    pub auto_spin_enabled: bool,
+    /// Whether the built-in help overlay should be drawn.
+    pub help_visible: bool,
+    /// Selected animation clip index, when animation playback is active.
+    pub selected_animation: Option<usize>,
+    /// Current animation playback time in seconds.
+    pub animation_time_seconds: f32,
+    /// Animation playback speed multiplier.
+    pub animation_speed: f32,
+    /// Whether animation playback advances in [`Self::tick`].
+    pub animation_playing: bool,
+    /// Whether animation playback loops at clip duration.
+    pub animation_looping: bool,
+    /// Seconds blended between the clip tail and head when looping.
+    ///
+    /// A value of zero preserves an authored hard loop boundary.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub animation_loop_blend_seconds: f32,
+}
+
+impl Default for Mesh3dState {
+    fn default() -> Self {
+        Self {
+            rotation: Vec3::new(0.35, -0.45, 0.0),
+            pan: Vec3::default(),
+            zoom: 1.0,
+            auto_spin_enabled: false,
+            help_visible: false,
+            selected_animation: Some(0),
+            animation_time_seconds: 0.0,
+            animation_speed: 1.0,
+            animation_playing: true,
+            animation_looping: true,
+            animation_loop_blend_seconds: 0.0,
+        }
+    }
+}
+
+impl Mesh3dState {
+    /// Rotate by Euler deltas in radians.
+    pub fn rotate(&mut self, delta: Vec3) {
+        self.rotation += delta;
+    }
+
+    /// Pan in normalized screen/model space.
+    pub fn pan(&mut self, delta: Vec3) {
+        self.pan += delta;
+    }
+
+    /// Multiply zoom by `factor`.
+    pub fn zoom_by(&mut self, factor: f32) {
+        self.zoom = (self.zoom * factor).clamp(0.05, 100.0);
+    }
+
+    /// Reset view controls to defaults.
+    pub fn reset_view(&mut self) {
+        let help_visible = self.help_visible;
+        let auto_spin_enabled = self.auto_spin_enabled;
+        let selected_animation = self.selected_animation;
+        let animation_time_seconds = self.animation_time_seconds;
+        let animation_speed = self.animation_speed;
+        let animation_playing = self.animation_playing;
+        let animation_looping = self.animation_looping;
+        let animation_loop_blend_seconds = self.animation_loop_blend_seconds;
+        *self = Self::default();
+        self.help_visible = help_visible;
+        self.auto_spin_enabled = auto_spin_enabled;
+        self.selected_animation = selected_animation;
+        self.animation_time_seconds = animation_time_seconds;
+        self.animation_speed = animation_speed;
+        self.animation_playing = animation_playing;
+        self.animation_looping = animation_looping;
+        self.animation_loop_blend_seconds = animation_loop_blend_seconds;
+    }
+
+    /// Toggle auto-spin.
+    pub fn toggle_auto_spin(&mut self) {
+        self.auto_spin_enabled = !self.auto_spin_enabled;
+    }
+
+    /// Toggle the built-in help overlay.
+    pub fn toggle_help(&mut self) {
+        self.help_visible = !self.help_visible;
+    }
+
+    /// Select an animation clip and restart playback time.
+    pub fn select_animation(&mut self, index: usize, clip_count: usize) {
+        if clip_count == 0 {
+            self.selected_animation = None;
+        } else {
+            self.selected_animation = Some(index.min(clip_count - 1));
+            self.restart_animation();
+        }
+    }
+
+    /// Select the next animation clip, wrapping when `clip_count` is non-zero.
+    pub fn next_animation(&mut self, clip_count: usize) {
+        if clip_count == 0 {
+            self.selected_animation = None;
+            return;
+        }
+        let current = self.selected_animation.unwrap_or(0);
+        self.select_animation((current + 1) % clip_count, clip_count);
+    }
+
+    /// Select the previous animation clip, wrapping when `clip_count` is non-zero.
+    pub fn previous_animation(&mut self, clip_count: usize) {
+        if clip_count == 0 {
+            self.selected_animation = None;
+            return;
+        }
+        let current = self.selected_animation.unwrap_or(0);
+        self.select_animation((current + clip_count - 1) % clip_count, clip_count);
+    }
+
+    /// Clamp the selected animation to available clips.
+    pub fn clamp_animation_selection(&mut self, clip_count: usize) {
+        if clip_count == 0 {
+            self.selected_animation = None;
+        } else {
+            self.selected_animation =
+                Some(self.selected_animation.unwrap_or(0).min(clip_count - 1));
+        }
+    }
+
+    /// Restart the selected animation from the beginning.
+    pub fn restart_animation(&mut self) {
+        self.animation_time_seconds = 0.0;
+    }
+
+    /// Toggle animation playback.
+    pub fn toggle_animation_playback(&mut self) {
+        self.animation_playing = !self.animation_playing;
+    }
+
+    /// Toggle animation looping.
+    pub fn toggle_animation_looping(&mut self) {
+        self.animation_looping = !self.animation_looping;
+    }
+
+    /// Multiply animation speed by `factor`.
+    pub fn adjust_animation_speed(&mut self, factor: f32) {
+        self.animation_speed = (self.animation_speed * factor).clamp(0.05, 8.0);
+    }
+
+    /// Return playback time clamped or wrapped to `duration_seconds`.
+    #[must_use]
+    pub fn animation_display_time(&self, duration_seconds: f32) -> f32 {
+        crate::animation::playback_time(
+            self.animation_time_seconds,
+            duration_seconds,
+            self.animation_looping,
+        )
+    }
+
+    /// Advance time-based state such as auto-spin and animation playback.
+    pub fn tick(&mut self, delta_seconds: f32, config: &Mesh3dConfig) {
+        if self.auto_spin_enabled {
+            self.rotation.x += config.auto_spin[0] * delta_seconds;
+            self.rotation.y += config.auto_spin[1] * delta_seconds;
+            self.rotation.z += config.auto_spin[2] * delta_seconds;
+        }
+        if self.animation_playing {
+            self.animation_time_seconds += delta_seconds.max(0.0) * self.animation_speed;
+        }
+    }
+}
+
+/// A reusable Ratatui widget that renders a [`Mesh`].
+#[derive(Debug, Clone)]
+pub struct Mesh3dWidget<'a> {
+    source: MeshSource<'a>,
+    config: Cow<'a, Mesh3dConfig>,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum MeshSource<'a> {
+    Mesh(&'a Mesh),
+    Prepared(&'a PreparedMesh<'a>),
+}
+
+impl<'a> MeshSource<'a> {
+    const fn mesh(self) -> &'a Mesh {
+        match self {
+            Self::Mesh(mesh) => mesh,
+            Self::Prepared(prepared) => prepared.mesh(),
+        }
+    }
+}
+
+impl<'a> Mesh3dWidget<'a> {
+    /// Create a widget for `mesh` with default configuration.
+    #[must_use]
+    pub fn new(mesh: &'a Mesh) -> Self {
+        Self {
+            source: MeshSource::Mesh(mesh),
+            config: Cow::Owned(Mesh3dConfig::default()),
+        }
+    }
+
+    /// Create a widget backed by topology prepared once for repeated rendering.
+    #[must_use]
+    pub fn new_prepared(prepared: &'a PreparedMesh<'a>) -> Self {
+        Self {
+            source: MeshSource::Prepared(prepared),
+            config: Cow::Owned(Mesh3dConfig::default()),
+        }
+    }
+
+    /// Set widget configuration.
+    #[must_use]
+    pub fn config(mut self, config: Mesh3dConfig) -> Self {
+        self.config = Cow::Owned(config);
+        self
+    }
+
+    /// Borrow a widget configuration without cloning it for this render.
+    #[must_use]
+    pub fn with_config_ref(mut self, config: &'a Mesh3dConfig) -> Self {
+        self.config = Cow::Borrowed(config);
+        self
+    }
+
+    /// Borrow the active configuration.
+    #[must_use]
+    pub fn config_ref(&self) -> &Mesh3dConfig {
+        self.config.as_ref()
+    }
+}
+
+impl StatefulWidget for Mesh3dWidget<'_> {
+    type State = Mesh3dState;
+
+    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
+        let mesh = self.source.mesh();
+        match self.source {
+            MeshSource::Mesh(mesh) => render_mesh(mesh, area, buf, state, self.config.as_ref()),
+            MeshSource::Prepared(prepared) => {
+                render_prepared_mesh(prepared, area, buf, state, self.config.as_ref());
+            }
+        }
+        if self.config.show_hints {
+            draw_hints(area, buf, mesh, state);
+        }
+        if self.config.show_help_overlay || state.help_visible {
+            draw_help(area, buf);
+        }
+    }
+}
+
+fn draw_hints(area: Rect, buf: &mut Buffer, mesh: &Mesh, state: &Mesh3dState) {
+    if area.width < 20 || area.height == 0 {
+        return;
+    }
+    let text = format!(
+        " {} | faces:{} | zoom:{:.2} | anim:{} | ? help ",
+        mesh.name,
+        mesh.faces.len(),
+        state.zoom,
+        mesh.animations.len()
+    );
+    draw_text(
+        area.x,
+        area.y,
+        area.width,
+        buf,
+        &text,
+        Style::default().fg(Color::Gray),
+    );
+}
+
+fn draw_help(area: Rect, buf: &mut Buffer) {
+    if area.width < 30 || area.height < 9 {
+        return;
+    }
+    let lines = [
+        " ratatui-3dmesh controls ",
+        " arrows / wasd : rotate ",
+        " hjkl          : pan ",
+        " + / -         : zoom ",
+        " m             : render mode ",
+        " c             : color mode ",
+        " o             : projection ",
+        " [ / ]         : brightness ",
+        " space         : auto-spin ",
+        " p/n/b/0       : animation ",
+        " ,/. speed | v loop ",
+        " r reset | ? help | q quit ",
+    ];
+    let width = lines.iter().map(|line| line.len()).max().unwrap_or(0) as u16 + 2;
+    let height = lines.len() as u16 + 2;
+    let x = area.x + area.width.saturating_sub(width) / 2;
+    let y = area.y + area.height.saturating_sub(height) / 2;
+    let style = Style::default()
+        .fg(Color::White)
+        .bg(Color::Black)
+        .add_modifier(Modifier::BOLD);
+
+    for row in 0..height.min(area.height) {
+        for col in 0..width.min(area.width) {
+            let bx = x + col;
+            let by = y + row;
+            if bx < area.x + area.width && by < area.y + area.height {
+                buf[(bx, by)].set_char(' ').set_style(style);
+            }
+        }
+    }
+    for (i, line) in lines.iter().enumerate() {
+        draw_text(
+            x + 1,
+            y + 1 + i as u16,
+            width.saturating_sub(2),
+            buf,
+            line,
+            style,
+        );
+    }
+}
+
+fn draw_text(x: u16, y: u16, width: u16, buf: &mut Buffer, text: &str, style: Style) {
+    for (offset, ch) in text.chars().take(width as usize).enumerate() {
+        let cell = &mut buf[(x + offset as u16, y)];
+        cell.set_char(ch);
+        cell.set_style(style);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use ratatui::{backend::TestBackend, Terminal};
+
+    use super::*;
+    use crate::model::{Face, Vec3};
+
+    #[test]
+    fn widget_renders_without_panicking() {
+        let mesh = Mesh::new(
+            "tri",
+            vec![
+                Vec3::new(-1.0, -1.0, 0.0),
+                Vec3::new(1.0, -1.0, 0.0),
+                Vec3::new(0.0, 1.0, 0.0),
+            ],
+            vec![Face::new(vec![0, 1, 2])],
+            vec![],
+        )
+        .unwrap();
+        let backend = TestBackend::new(30, 12);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let mut state = Mesh3dState::default();
+        terminal
+            .draw(|frame| {
+                frame.render_stateful_widget(Mesh3dWidget::new(&mesh), frame.area(), &mut state)
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn animation_state_advances_and_pauses() {
+        let mut state = Mesh3dState::default();
+        state.tick(0.5, &Mesh3dConfig::default());
+        assert_eq!(state.animation_time_seconds, 0.5);
+
+        state.toggle_animation_playback();
+        state.tick(0.5, &Mesh3dConfig::default());
+        assert_eq!(state.animation_time_seconds, 0.5);
+
+        state.adjust_animation_speed(2.0);
+        state.toggle_animation_playback();
+        state.tick(0.5, &Mesh3dConfig::default());
+        assert_eq!(state.animation_time_seconds, 1.5);
+
+        state.restart_animation();
+        assert_eq!(state.animation_time_seconds, 0.0);
+    }
+
+    #[test]
+    fn animation_selection_wraps() {
+        let mut state = Mesh3dState::default();
+        state.next_animation(3);
+        assert_eq!(state.selected_animation, Some(1));
+        state.previous_animation(3);
+        assert_eq!(state.selected_animation, Some(0));
+        state.previous_animation(3);
+        assert_eq!(state.selected_animation, Some(2));
+        state.clamp_animation_selection(0);
+        assert_eq!(state.selected_animation, None);
+    }
+}

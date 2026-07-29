@@ -1,0 +1,51 @@
+name: Bug report
+description: Report a reproducible Desktop TUI problem
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please remove usernames, hostnames, paths, and other private data from logs and screenshots.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Include what you expected and what appeared instead.
+    validations:
+      required: true
+
+  - type: input
+    id: plasma
+    attributes:
+      label: Plasma version
+      placeholder: "6.3.5"
+    validations:
+      required: true
+
+  - type: input
+    id: distro
+    attributes:
+      label: Distribution
+      placeholder: "CachyOS, Arch Linux, Fedora KDE, …"
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      placeholder: |
+        1. Add the widget
+        2. Select …
+        3. Observe …
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Redact personal information. This field accepts code blocks and attachments.
+      render: shell

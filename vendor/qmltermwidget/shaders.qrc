@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/qmltermwidget/shaders">
+        <file>shaders/terminal.vert.qsb</file>
+        <file>shaders/terminal.frag.qsb</file>
+    </qresource>
+</RCC>

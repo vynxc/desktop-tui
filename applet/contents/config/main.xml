@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
+      http://www.kde.org/standards/kcfg/1.0/kcfg.xsd">
+    <kcfgfile name=""/>
+
+    <group name="General">
+        <entry name="templateId" type="String">
+            <default>model-system</default>
+        </entry>
+        <entry name="customTemplatePath" type="String">
+            <default></default>
+        </entry>
+        <entry name="modelPath" type="String">
+            <default></default>
+        </entry>
+        <entry name="framesPerSecond" type="Int">
+            <default>15</default>
+        </entry>
+        <entry name="showFps" type="Bool">
+            <default>false</default>
+        </entry>
+        <entry name="animateModel" type="Bool">
+            <default>true</default>
+        </entry>
+        <entry name="allowTextSelection" type="Bool">
+            <default>false</default>
+        </entry>
+        <entry name="fontFamily" type="String">
+            <default>monospace</default>
+        </entry>
+        <entry name="fontPointSize" type="Int">
+            <default>11</default>
+        </entry>
+        <entry name="lineSpacing" type="Int">
+            <default>1</default>
+        </entry>
+    </group>
+</kcfg>
