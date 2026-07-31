@@ -4,6 +4,7 @@ use std::{
     io::Write,
     os::unix::fs::FileExt,
     path::Path,
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 use ratatui::{
@@ -26,6 +27,7 @@ use ratatui::prelude::IntoCrossterm;
 const SHARED_FRAME_MAGIC: &[u8; 8] = b"DTUI001\0";
 const SHARED_FRAME_HEADER_SIZE: usize = 64;
 const SHARED_FRAME_CELL_SIZE: usize = 8;
+const SHARED_FRAME_GENERATION_OFFSET: usize = 32;
 
 #[derive(Clone)]
 struct OwnedCell {
@@ -235,6 +237,14 @@ impl SharedFrameBackend {
         header[8..12].copy_from_slice(&u32::from(size.width).to_le_bytes());
         header[12..16].copy_from_slice(&u32::from(size.height).to_le_bytes());
         header[24..28].copy_from_slice(&(SHARED_FRAME_CELL_SIZE as u32).to_le_bytes());
+        let generation = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos() as u64
+            ^ u64::from(std::process::id());
+        let generation = generation.max(1);
+        header[SHARED_FRAME_GENERATION_OFFSET..SHARED_FRAME_GENERATION_OFFSET + 8]
+            .copy_from_slice(&generation.to_le_bytes());
         file.write_all_at(&header, 0)?;
 
         let mut backend = Self {

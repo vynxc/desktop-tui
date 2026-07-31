@@ -104,6 +104,7 @@ constexpr int GlyphRows = GlyphCount / GlyphColumns;
 constexpr int GlyphPadding = 2;
 constexpr qsizetype SharedFrameHeaderSize = 64;
 constexpr qsizetype SharedFrameCellSize = 8;
+constexpr qsizetype SharedFrameGenerationOffset = 32;
 constexpr char SharedFrameMagic[] = "DTUI001";
 
 struct TerminalVertex
@@ -703,6 +704,7 @@ TerminalDisplay::TerminalDisplay(QQuickItem *parent)
 ,_sharedFrameMap(nullptr)
 ,_sharedFrameMapSize(0)
 ,_sharedFrameState(0)
+,_sharedFrameGeneration(0)
 ,_sharedFrameColumns(0)
 ,_sharedFrameLines(0)
 ,_randomSeed(0)
@@ -828,9 +830,7 @@ TerminalDisplay::~TerminalDisplay()
     disconnect(_hideMouseTimer.get());
   qApp->removeEventFilter( this );
 
-  if (_sharedFrameMap && _sharedFrameFile)
-    _sharedFrameFile->unmap(_sharedFrameMap);
-  delete _sharedFrameFile;
+  resetSharedFrameMapping();
 
   delete[] _image;
 
@@ -853,18 +853,24 @@ void TerminalDisplay::setSharedFrameMode(bool enabled)
   else
   {
     _sharedFrameTimer->stop();
-    if (_sharedFrameMap && _sharedFrameFile)
-      _sharedFrameFile->unmap(_sharedFrameMap);
-    delete _sharedFrameFile;
-    _sharedFrameFile = nullptr;
-    _sharedFrameMap = nullptr;
-    _sharedFrameMapSize = 0;
-    _sharedFrameCells.clear();
-    _sharedFrameState = 0;
-    _sharedFrameColumns = 0;
-    _sharedFrameLines = 0;
+    resetSharedFrameMapping();
     update();
   }
+}
+
+void TerminalDisplay::resetSharedFrameMapping()
+{
+  if (_sharedFrameMap && _sharedFrameFile)
+    _sharedFrameFile->unmap(_sharedFrameMap);
+  delete _sharedFrameFile;
+  _sharedFrameFile = nullptr;
+  _sharedFrameMap = nullptr;
+  _sharedFrameMapSize = 0;
+  _sharedFrameCells.clear();
+  _sharedFrameState = 0;
+  _sharedFrameGeneration = 0;
+  _sharedFrameColumns = 0;
+  _sharedFrameLines = 0;
 }
 
 QString TerminalDisplay::sharedFramePath() const
@@ -909,6 +915,18 @@ void TerminalDisplay::pollSharedFrame()
 {
   if (!_sharedFrameMode)
     return;
+
+  // A renderer restart can truncate and resize the same frame path when a
+  // setting changes the terminal grid. The old mapping must not be read after
+  // that point: it describes the previous dimensions and may extend beyond
+  // the new file. Drop it here and let the next poll attach to the new frame.
+  if (_sharedFrameMap && _sharedFrameFile
+      && _sharedFrameFile->size() != _sharedFrameMapSize)
+  {
+    resetSharedFrameMapping();
+    update();
+    return;
+  }
 
   if (!_sharedFrameMap)
   {
@@ -961,7 +979,20 @@ void TerminalDisplay::pollSharedFrame()
     _sharedFrameMapSize = size;
     _sharedFrameColumns = static_cast<int>(columns);
     _sharedFrameLines = static_cast<int>(lines);
+    _sharedFrameGeneration =
+        qFromLittleEndian<quint64>(
+            _sharedFrameMap + SharedFrameGenerationOffset);
     _sharedFrameCells.resize(cellBytes);
+  }
+
+  const quint64 generation =
+      qFromLittleEndian<quint64>(
+          _sharedFrameMap + SharedFrameGenerationOffset);
+  if (generation == 0 || generation != _sharedFrameGeneration)
+  {
+    resetSharedFrameMapping();
+    update();
+    return;
   }
 
   const quint64 state =

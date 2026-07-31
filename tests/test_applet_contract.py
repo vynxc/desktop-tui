@@ -10,6 +10,7 @@ SETTINGS_QML = PROJECT_ROOT / "applet/contents/ui/configGeneral.qml"
 TERMINAL_DISPLAY = (
     PROJECT_ROOT / "vendor/qmltermwidget/lib/TerminalDisplay.cpp"
 )
+RENDERER_BACKEND = PROJECT_ROOT / "renderer/src/backend.rs"
 
 COMMAND_SETTINGS = {
     "canvasSource",
@@ -31,6 +32,7 @@ class AppletCommandCanvasContract(unittest.TestCase):
         cls.main_qml = MAIN_QML.read_text()
         cls.settings_qml = SETTINGS_QML.read_text()
         cls.terminal_display = TERMINAL_DISPLAY.read_text()
+        cls.renderer_backend = RENDERER_BACKEND.read_text()
         root = ElementTree.parse(CONFIG_SCHEMA).getroot()
         cls.schema_keys = {
             entry.attrib["name"]
@@ -62,6 +64,21 @@ class AppletCommandCanvasContract(unittest.TestCase):
 
     def test_shared_frames_are_renderer_only(self):
         self.assertIn("sharedFrameMode: !root.commandCanvas", self.main_qml)
+
+    def test_shared_frame_reader_remaps_after_grid_size_changes(self):
+        self.assertIn(
+            "_sharedFrameFile->size() != _sharedFrameMapSize",
+            self.terminal_display,
+        )
+        self.assertIn(
+            "generation != _sharedFrameGeneration",
+            self.terminal_display,
+        )
+        self.assertIn(
+            "SHARED_FRAME_GENERATION_OFFSET",
+            self.renderer_backend,
+        )
+        self.assertIn("resetSharedFrameMapping();", self.terminal_display)
 
     def test_mouse_interaction_keeps_desktop_buttons_and_pointer(self):
         self.assertIn(

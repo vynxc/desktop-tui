@@ -4,7 +4,7 @@ use std::ops::Range;
 use crate::{
     animation::{sample_mesh_geometry_reusing, SampledGeometry},
     config::{ColorMode, Mesh3dConfig, RenderMode, TextureFilter, TextureWrap},
-    model::{AlphaMode, Face, Material, Mesh, Texture, Vec2, Vec3},
+    model::{AlphaMode, Bounds, Face, Material, Mesh, Texture, Vec2, Vec3},
     widget::Mesh3dState,
 };
 
@@ -32,6 +32,7 @@ pub struct PreparedMesh<'a> {
     triangles: Vec<PreparedTriangle>,
     emissive_maps: Vec<Option<Box<[[u8; 3]]>>>,
     animation_scratch: std::sync::Mutex<Option<SampledGeometry>>,
+    animation_normalization_bounds: std::sync::Mutex<Vec<Option<Bounds>>>,
     frame_scratch: std::sync::Mutex<FrameScratch>,
     deferred_scratch: std::sync::Mutex<DeferredScratch>,
     has_blend: bool,
@@ -103,6 +104,10 @@ impl<'a> PreparedMesh<'a> {
             triangles: prepared.triangles,
             emissive_maps: prepared.emissive_maps,
             animation_scratch: std::sync::Mutex::new(None),
+            animation_normalization_bounds: std::sync::Mutex::new(vec![
+                None;
+                mesh.animations.len()
+            ]),
             frame_scratch: std::sync::Mutex::new(FrameScratch::default()),
             deferred_scratch: std::sync::Mutex::new(DeferredScratch::default()),
             has_blend: prepared.has_blend,
@@ -374,9 +379,20 @@ fn render_mesh_impl<M: Metrics>(
         .map_or(mesh.normals.as_slice(), |geometry| {
             geometry.normals.as_slice()
         });
-    let bounds = sampled_geometry
-        .as_ref()
-        .map_or(mesh.bounds, |geometry| geometry.bounds);
+    let bounds = match (prepared, state.selected_animation, sampled_geometry.as_ref()) {
+        (Some(prepared), Some(clip), Some(geometry)) => {
+            let mut cached = prepared
+                .animation_normalization_bounds
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            if clip >= cached.len() {
+                cached.resize(clip + 1, None);
+            }
+            *cached[clip].get_or_insert(geometry.bounds)
+        }
+        (_, _, Some(geometry)) => geometry.bounds,
+        _ => mesh.bounds,
+    };
     let (normalization_center, normalization_scale) = if config.normalize {
         let radius = bounds.radius();
         (
@@ -1629,6 +1645,11 @@ mod tests {
 
     use super::*;
     use crate::{
+        animation::{
+            AnimatedProperty, AnimationChannel, AnimationClip, AnimationNode,
+            AnimationSampler, AnimationValue, Interpolation, MeshRange, NodeTransform,
+        },
+        config::ProjectionMode,
         model::{AlphaMode, Face, Material, Mesh, Texture, TextureRef, Vec2, Vec3},
         widget::Mesh3dState,
     };
@@ -1823,6 +1844,95 @@ mod tests {
         assert_eq!(
             direct.backend().buffer().content(),
             prepared.backend().buffer().content()
+        );
+    }
+
+    #[test]
+    fn prepared_animation_keeps_static_body_cells_fixed_when_extremity_moves() {
+        let mut mesh = Mesh::new(
+            "body-with-moving-ear",
+            vec![
+                Vec3::new(-0.8, -0.8, 0.0),
+                Vec3::new(-0.8, 0.3, 0.0),
+                Vec3::new(0.1, 0.3, 0.0),
+                Vec3::new(0.1, -0.8, 0.0),
+                Vec3::new(0.0, 0.3, 0.0),
+                Vec3::new(0.2, 0.8, 0.0),
+                Vec3::new(0.4, 0.3, 0.0),
+            ],
+            vec![Face::new(vec![0, 1, 2, 3]), Face::new(vec![4, 5, 6])],
+            vec![],
+        )
+        .unwrap();
+        mesh.bind_vertices = mesh.vertices.clone();
+        mesh.animation_nodes.push(AnimationNode {
+            index: 0,
+            name: Some("ear".into()),
+            parent: None,
+            base_transform: NodeTransform::default(),
+            vertex_ranges: vec![MeshRange::new(4, 3)],
+            normal_ranges: Vec::new(),
+        });
+        mesh.animations.push(AnimationClip {
+            name: "ear-twitch".into(),
+            duration_seconds: 1.0,
+            channels: vec![AnimationChannel {
+                target_node: 0,
+                property: AnimatedProperty::Translation,
+                sampler: AnimationSampler {
+                    inputs: vec![0.0, 1.0],
+                    outputs: vec![
+                        AnimationValue::Vec3(Vec3::default()),
+                        AnimationValue::Vec3(Vec3::new(4.0, 0.0, 0.0)),
+                    ],
+                    interpolation: Interpolation::Linear,
+                },
+            }],
+        });
+
+        let prepared = PreparedMesh::new(&mesh);
+        let area = Rect::new(0, 0, 40, 20);
+        let config = Mesh3dConfig::default()
+            .projection(ProjectionMode::Orthographic)
+            .backface_culling(false)
+            .lighting(1.0, 0.0)
+            .show_hints(false);
+        let mut state = Mesh3dState {
+            selected_animation: Some(0),
+            animation_time_seconds: 0.0,
+            animation_looping: false,
+            ..Mesh3dState::default()
+        };
+        let mut first = Buffer::empty(area);
+        render_prepared_mesh(&prepared, area, &mut first, &state, &config);
+
+        state.animation_time_seconds = 1.0;
+        let mut second = Buffer::empty(area);
+        render_prepared_mesh(&prepared, area, &mut second, &state, &config);
+
+        let body_start = area.height / 2;
+        let first_body = first
+            .content()
+            .iter()
+            .enumerate()
+            .filter(|(index, _)| (*index / usize::from(area.width)) >= usize::from(body_start))
+            .map(|(_, cell)| (cell.symbol().to_owned(), cell.fg))
+            .collect::<Vec<_>>();
+        let second_body = second
+            .content()
+            .iter()
+            .enumerate()
+            .filter(|(index, _)| (*index / usize::from(area.width)) >= usize::from(body_start))
+            .map(|(_, cell)| (cell.symbol().to_owned(), cell.fg))
+            .collect::<Vec<_>>();
+
+        assert!(
+            first_body.iter().any(|(symbol, _)| symbol != " "),
+            "the static body must paint the lower half"
+        );
+        assert_eq!(
+            first_body, second_body,
+            "moving an extremity must not recenter or rescale the static body"
         );
     }
 

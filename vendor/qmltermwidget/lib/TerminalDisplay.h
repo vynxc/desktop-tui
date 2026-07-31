@@ -763,6 +763,8 @@ private:
 
     // -- Drawing helpers --
 
+    void resetSharedFrameMapping();
+
     // determine the width of this text
     int textWidth(int startColumn, int length, int line) const;
     // determine the area that encloses this series of characters
@@ -891,6 +893,7 @@ private:
     qint64 _sharedFrameMapSize;
     QByteArray _sharedFrameCells;
     quint64 _sharedFrameState;
+    quint64 _sharedFrameGeneration;
     int _sharedFrameColumns;
     int _sharedFrameLines;
 
