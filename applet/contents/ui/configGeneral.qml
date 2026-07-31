@@ -252,7 +252,9 @@ KCM.SimpleKCM {
 
         QQC2.CheckBox {
             id: allowTextSelection
-            text: i18n("Allow terminal text selection")
+            visible: !page.rendererCanvas
+            enabled: visible
+            text: i18n("Allow command-canvas mouse interaction")
         }
 
         QQC2.Label {

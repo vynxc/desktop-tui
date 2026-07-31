@@ -34,8 +34,9 @@ changes reload only the affected instance.
 
 The terminal stays unfocused and has no typing surface or renderer controls.
 Mouse input is disabled by default, preserving Plasma's normal pointer and
-desktop context menu. Users can opt into left-button terminal text selection;
-right-click remains unclaimed.
+desktop context menu. Command canvases can opt into left-button terminal mouse
+events for clickable TUIs. The cursor remains a pointer, while middle- and
+right-click remain unclaimed.
 
 Configuration uses native Plasma/Kirigami form controls. Settings are applied
 through the normal applet configuration window and restart only that instance.

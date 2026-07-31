@@ -40,8 +40,8 @@ Exit behavior has three choices:
   exponential backoff.
 
 The existing terminal settings remain shared by both sources. Keyboard input
-stays disabled. Mouse input stays disabled unless terminal text selection is
-explicitly enabled.
+stays disabled. Mouse input stays disabled unless command-canvas mouse
+interaction is explicitly enabled; that option forwards only the left button.
 
 ## Process model
 
@@ -176,8 +176,8 @@ TUIs should redraw in place and target modest frame rates.
 
 [MPRIS TUI](https://github.com/vynxc/mpris-tui) is the first external command
 provider. It runs as a long-lived command canvas, follows the active media
-player over the session D-Bus, renders with Ratatui, and requires no keyboard
-or mouse input.
+player over the session D-Bus, renders local cover art with Ratatui, and uses
+left-click-only transport controls with no keyboard shortcuts.
 
 Install it with:
 
@@ -190,11 +190,12 @@ Then select **Command output** and use:
 | Setting | Value |
 | --- | --- |
 | Program | `mpris-tui` |
-| Arguments | `--layout` on one line, `wide` on the next |
+| Arguments | `--layout` on one line, `vertical` on the next |
 | After exit | Keep running |
+| Mouse interaction | Enabled |
 
-Choose `hero`, `wide`, `compact`, or `minimal` for each widget instance. Add
-`--fps` and a value from `1` to `30` on separate argument lines to cap its
-redraw rate.
+Choose `vertical`, `hero`, `wide`, `compact`, or `minimal` for each widget
+instance. Add `--fps` and a value from `1` to `30` on separate argument lines
+to cap its redraw rate.
 
 Its repository, releases, assets, and CI remain independent from Desktop TUI.

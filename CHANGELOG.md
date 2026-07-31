@@ -5,6 +5,8 @@ All notable changes to Desktop TUI will be documented here.
 ## [Unreleased]
 
 - Documented MPRIS TUI as the first external command-canvas provider.
+- Generalized the command-canvas mouse option for clickable TUIs while keeping
+  the pointer cursor and Plasma's middle/right-click handling.
 
 ## [0.2.0] - 2026-07-29
 

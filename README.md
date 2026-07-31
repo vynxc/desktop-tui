@@ -121,11 +121,13 @@ For a transparent now-playing canvas, install
 | Setting | Value |
 | --- | --- |
 | Program | `mpris-tui` |
-| Arguments | `--layout` on one line, `wide` on the next |
+| Arguments | `--layout` on one line, `vertical` on the next |
 | After exit | Keep running |
+| Mouse interaction | Enabled |
 
-MPRIS TUI follows the active Linux media player over D-Bus, needs no input, and
-offers `hero`, `wide`, `compact`, and `minimal` responsive layouts.
+MPRIS TUI follows the active Linux media player over D-Bus, renders local cover
+art, and exposes click-only transport controls and seeking. It offers
+`vertical`, `hero`, `wide`, `compact`, and `minimal` responsive layouts.
 
 Programs are launched directly—never through `sh -c`. Enter one exact argument
 per line and one optional `NAME=value` environment entry per line. Commands are
@@ -141,9 +143,9 @@ Mouse input is disabled by default. The cursor remains a normal pointer and
 left-, middle-, and right-clicks pass through to Plasma, so desktop menus,
 notes, and edit mode keep working.
 
-Enable **Allow terminal text selection** when you want to select rendered text.
-That opt-in captures only the left mouse button; middle- and right-click still
-belong to the desktop.
+Enable **Allow command-canvas mouse interaction** for a TUI with clickable
+controls. That opt-in captures only the left mouse button, keeps the normal
+pointer cursor, and leaves middle- and right-click available to Plasma.
 
 ## Custom templates
 

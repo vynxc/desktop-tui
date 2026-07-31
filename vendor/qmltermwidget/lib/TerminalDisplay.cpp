@@ -901,7 +901,7 @@ void TerminalDisplay::setMouseInputEnabled(bool enabled)
     return;
 
   setAcceptedMouseButtons(enabled ? Qt::LeftButton : Qt::NoButton);
-  setCursor(QCursor(enabled ? Qt::IBeamCursor : Qt::ArrowCursor));
+  setCursor(QCursor(Qt::ArrowCursor));
   emit mouseInputEnabledChanged();
 }
 
